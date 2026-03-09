@@ -1,0 +1,37 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: imagejob-mysql
+    environment:
+      MYSQL_DATABASE: imagejob
+      MYSQL_USER: imagejob
+      MYSQL_PASSWORD: imagejob
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "imagejob", "-pimagejob"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: imagejob-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/imagejob?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USER: imagejob
+      DB_PASSWORD: imagejob
+      MOCK_WORKER_BASE_URL: https://dev.realteeth.ai/mock
+      MOCK_WORKER_API_KEY: ${MOCK_WORKER_API_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  mysql_data:

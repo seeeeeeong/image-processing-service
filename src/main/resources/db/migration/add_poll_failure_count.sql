@@ -1,0 +1,2 @@
+ALTER TABLE jobs ADD COLUMN poll_failure_count INT NOT NULL DEFAULT 0;
+ALTER TABLE jobs ADD COLUMN max_poll_failures INT NOT NULL DEFAULT 5;

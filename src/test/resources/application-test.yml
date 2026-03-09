@@ -1,0 +1,22 @@
+spring:
+  jpa:
+    show-sql: true
+  task:
+    scheduling:
+      enabled: false
+
+app:
+  worker:
+    submit-batch-size: 5
+    poll-batch-size: 10
+    lease-seconds: 90
+    max-attempts: 3
+    poll-initial-delay-seconds: 5
+
+resilience4j:
+  retry:
+    instances:
+      mockWorkerSubmit:
+        max-attempts: 1
+      mockWorkerPoll:
+        max-attempts: 1

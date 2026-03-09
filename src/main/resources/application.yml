@@ -1,0 +1,79 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/imagejob?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:imagejob}
+    password: ${DB_PASSWORD:imagejob}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+      schema-locations:
+        - classpath:db/migration/init.sql
+        - classpath:db/migration/add_poll_failure_count.sql
+
+app:
+  mock-worker:
+    base-url: ${MOCK_WORKER_BASE_URL:https://dev.realteeth.ai/mock}
+    api-key: ${MOCK_WORKER_API_KEY}
+    connect-timeout-seconds: 10
+    read-timeout-seconds: 30
+  worker:
+    submit-batch-size: 5
+    poll-batch-size: 10
+    lease-seconds: 90
+    max-attempts: 3
+    poll-initial-delay-seconds: 5
+    poll-backoff-multiplier: 2.0
+    poll-max-delay-seconds: 60
+
+resilience4j:
+  retry:
+    instances:
+      mockWorkerSubmit:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2.0
+        randomized-wait-factor: 0.5
+        retry-exception-predicate: com.realteeth.imagejob.config.RetryableExceptionPredicate
+      mockWorkerPoll:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2.0
+        randomized-wait-factor: 0.5
+        retry-exception-predicate: com.realteeth.imagejob.config.RetryableExceptionPredicate
+  bulkhead:
+    instances:
+      mockWorkerSubmit:
+        max-concurrent-calls: 8
+        max-wait-duration: 0ms
+      mockWorkerPoll:
+        max-concurrent-calls: 8
+        max-wait-duration: 0ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    com.realteeth.imagejob: INFO
+    org.springframework.web.reactive.function.client: DEBUG
