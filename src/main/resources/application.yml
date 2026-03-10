@@ -28,8 +28,10 @@ spring:
 
 app:
   mock-worker:
-    base-url: ${MOCK_WORKER_BASE_URL:https://dev.realteeth.ai/mock}
-    api-key: ${MOCK_WORKER_API_KEY}
+    base-url: ${MOCK_WORKER_BASE_URL:https://dev.realteeth.ai}
+    api-key: ${MOCK_WORKER_API_KEY:}
+    candidate-name: ${MOCK_WORKER_CANDIDATE_NAME:evaluator}
+    email: ${MOCK_WORKER_EMAIL:evaluator@example.com}
     connect-timeout-seconds: 10
     read-timeout-seconds: 30
   worker:

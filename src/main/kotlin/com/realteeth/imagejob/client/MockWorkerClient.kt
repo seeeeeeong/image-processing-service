@@ -2,7 +2,7 @@ package com.realteeth.imagejob.client
 
 import com.realteeth.imagejob.client.dto.WorkerJobResponse
 import com.realteeth.imagejob.client.dto.WorkerProcessRequest
-import com.realteeth.imagejob.config.AppProperties
+import com.realteeth.imagejob.config.ApiKeyProvider
 import io.github.resilience4j.bulkhead.annotation.Bulkhead
 import io.github.resilience4j.retry.annotation.Retry
 import org.slf4j.LoggerFactory
@@ -13,7 +13,7 @@ import org.springframework.web.reactive.function.client.bodyToMono
 @Component
 class MockWorkerClient(
     private val webClient: WebClient,
-    private val props: AppProperties
+    private val apiKeyProvider: ApiKeyProvider
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -22,8 +22,8 @@ class MockWorkerClient(
     fun submit(imageUrl: String): WorkerJobResponse {
         log.debug("Submitting job to Mock Worker: imageUrl={}", imageUrl)
         return webClient.post()
-            .uri("/process")
-            .header("X-API-KEY", props.mockWorker.apiKey)
+            .uri("/mock/process")
+            .header("X-API-KEY", apiKeyProvider.apiKey)
             .bodyValue(WorkerProcessRequest(imageUrl = imageUrl))
             .retrieve()
             .bodyToMono<WorkerJobResponse>()
@@ -35,8 +35,8 @@ class MockWorkerClient(
     fun poll(externalJobId: String): WorkerJobResponse {
         log.debug("Polling job from Mock Worker: externalJobId={}", externalJobId)
         return webClient.get()
-            .uri("/process/{jobId}", externalJobId)
-            .header("X-API-KEY", props.mockWorker.apiKey)
+            .uri("/mock/process/{jobId}", externalJobId)
+            .header("X-API-KEY", apiKeyProvider.apiKey)
             .retrieve()
             .bodyToMono<WorkerJobResponse>()
             .block()!!

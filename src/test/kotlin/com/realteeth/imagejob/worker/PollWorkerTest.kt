@@ -108,9 +108,10 @@ class PollWorkerTest {
     }
 
     @Test
-    fun `externalJobId가 없는 잡은 건너뜀`() {
+    fun `externalJobId가 없는 잡은 poll 없이 즉시 FAILED로 전환한다`() {
+        val jobId = UUID.randomUUID()
         val jobWithoutExternalId = Job(
-            id = UUID.randomUUID(),
+            id = jobId,
             payloadHash = "abc",
             imageUrl = "https://example.com/img.jpg",
             status = JobStatus.PROCESSING,
@@ -121,6 +122,7 @@ class PollWorkerTest {
         pollWorker.run()
 
         verify(mockWorkerClient, never()).poll(any())
+        verify(jobService).onPollNonRetryableFailure(eq(jobId), eq("MISSING_EXTERNAL_JOB_ID"), any())
         verify(jobService, never()).onPollResult(any(), any(), anyOrNull())
     }
 

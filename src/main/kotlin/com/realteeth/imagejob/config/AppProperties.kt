@@ -10,7 +10,9 @@ data class AppProperties(
 
 data class MockWorkerProperties(
     val baseUrl: String,
-    val apiKey: String,
+    val apiKey: String = "",
+    val candidateName: String = "evaluator",
+    val email: String = "evaluator@example.com",
     val connectTimeoutSeconds: Long = 10,
     val readTimeoutSeconds: Long = 30
 )

@@ -29,7 +29,8 @@ class PollWorker(
         jobs.forEach { job ->
             val jobId = job.id!!
             val externalJobId = job.externalJobId ?: run {
-                log.error("PROCESSING job has no externalJobId: jobId={}", jobId)
+                log.error("PROCESSING job has no externalJobId, transitioning to FAILED: jobId={}", jobId)
+                jobService.onPollNonRetryableFailure(jobId, "MISSING_EXTERNAL_JOB_ID", "externalJobId is null")
                 return@forEach
             }
 
