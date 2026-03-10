@@ -50,12 +50,26 @@ class JobServiceTest {
     fun `Idempotency-Key가 있고 기존 잡이 존재하면 기존 잡을 반환`() {
         val key = "key-abc"
         val existingJob = createJob()
+        whenever(jobRepository.findActiveByPayloadHash(any())).thenReturn(null)
         whenever(jobRepository.findByIdempotencyKey(key)).thenReturn(existingJob)
 
         val (response, created) = jobService.createJob(CreateJobRequest("https://example.com/img.jpg"), key)
 
         assertFalse(created)
         assertEquals(existingJob.id, response.jobId)
+        verify(jobInsertHelper, never()).tryInsert(anyOrNull(), any(), any(), any(), any())
+    }
+
+    @Test
+    fun `Idempotency-Key가 있어도 활성 잡이 있으면 dedup을 먼저 적용한다`() {
+        val activeJob = createJob()
+        whenever(jobRepository.findActiveByPayloadHash(any())).thenReturn(activeJob)
+
+        val (response, created) = jobService.createJob(CreateJobRequest("https://example.com/img.jpg"), "key-abc")
+
+        assertFalse(created)
+        assertEquals(activeJob.id, response.jobId)
+        verify(jobRepository, never()).findByIdempotencyKey(any())
         verify(jobInsertHelper, never()).tryInsert(anyOrNull(), any(), any(), any(), any())
     }
 
@@ -115,14 +129,15 @@ class JobServiceTest {
     }
 
     @Test
-    fun `onSubmitSuccess COMPLETED 응답이면 즉시 COMPLETED`() {
+    fun `onSubmitSuccess COMPLETED 응답이면 PROCESSING 유지 후 즉시 poll`() {
         val job = createJob(status = JobStatus.DISPATCHING)
         whenever(jobRepository.findById(job.id!!)).thenReturn(Optional.of(job))
         whenever(jobRepository.save(any<Job>())).thenReturn(job)
 
         jobService.onSubmitSuccess(job.id!!, "ext-job-123", "COMPLETED")
 
-        assertEquals(JobStatus.COMPLETED, job.status)
+        assertEquals(JobStatus.PROCESSING, job.status)
+        assertNotNull(job.pollDueAt)
     }
 
     @Test

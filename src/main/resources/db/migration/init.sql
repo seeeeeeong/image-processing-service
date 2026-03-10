@@ -17,17 +17,16 @@ CREATE TABLE IF NOT EXISTS jobs (
     updated_at        DATETIME(6)  NOT NULL,
 
     active_dedup_key  VARCHAR(64) GENERATED ALWAYS AS (
-        CASE WHEN idempotency_key IS NULL
-              AND status NOT IN ('COMPLETED', 'FAILED', 'DEAD_LETTER')
+        CASE WHEN status NOT IN ('COMPLETED', 'FAILED', 'DEAD_LETTER')
              THEN payload_hash
              ELSE NULL
         END
-    ) STORED
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ) STORED,
 
-CREATE UNIQUE INDEX idx_jobs_idempotency_key ON jobs (idempotency_key);
-CREATE UNIQUE INDEX idx_jobs_active_dedup ON jobs (active_dedup_key);
-CREATE INDEX idx_jobs_queued_next_attempt ON jobs (status, next_attempt_at);
-CREATE INDEX idx_jobs_processing_poll_due ON jobs (status, poll_due_at);
-CREATE INDEX idx_jobs_lease_recovery ON jobs (status, locked_until);
-CREATE INDEX idx_jobs_external_job_id ON jobs (external_job_id);
+    UNIQUE KEY idx_jobs_idempotency_key (idempotency_key),
+    UNIQUE KEY idx_jobs_active_dedup (active_dedup_key),
+    KEY idx_jobs_queued_next_attempt (status, next_attempt_at),
+    KEY idx_jobs_processing_poll_due (status, poll_due_at),
+    KEY idx_jobs_lease_recovery (status, locked_until),
+    KEY idx_jobs_external_job_id (external_job_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

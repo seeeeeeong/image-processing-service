@@ -21,10 +21,11 @@ spring:
   sql:
     init:
       mode: always
-      continue-on-error: true
+      continue-on-error: false
       schema-locations:
         - classpath:db/migration/init.sql
         - classpath:db/migration/add_poll_failure_count.sql
+        - classpath:db/migration/update_active_dedup_key.sql
 
 app:
   mock-worker:

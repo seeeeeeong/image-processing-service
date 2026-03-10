@@ -117,6 +117,29 @@ class JobApiIntegrationTest {
 
     @Test
     @Order(3)
+    fun `POST jobs - Idempotency-Key가 달라도 활성 동일 imageUrl이면 active dedup이 우선한다`() {
+        val firstHeaders = HttpHeaders().apply { set("Idempotency-Key", UUID.randomUUID().toString()) }
+        val secondHeaders = HttpHeaders().apply { set("Idempotency-Key", UUID.randomUUID().toString()) }
+        val imageUrl = "https://example.com/active-dedup-priority.jpg"
+
+        val first = restTemplate.postForEntity(
+            "/api/v1/jobs",
+            HttpEntity(CreateJobRequest(imageUrl), firstHeaders),
+            JobResponse::class.java
+        )
+        val second = restTemplate.postForEntity(
+            "/api/v1/jobs",
+            HttpEntity(CreateJobRequest(imageUrl), secondHeaders),
+            JobResponse::class.java
+        )
+
+        assertEquals(HttpStatus.CREATED, first.statusCode)
+        assertEquals(HttpStatus.OK, second.statusCode)
+        assertEquals(first.body?.jobId, second.body?.jobId)
+    }
+
+    @Test
+    @Order(4)
     fun `POST jobs - 동일 imageUrl 중복 요청 시 기존 잡 반환`() {
         val request = CreateJobRequest("https://example.com/same-image-dedup-test.jpg")
 
@@ -129,7 +152,7 @@ class JobApiIntegrationTest {
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     fun `POST jobs - 동시에 동일 imageUrl 요청해도 단일 job만 생성`() {
         val imageUrl = "https://example.com/concurrent-${UUID.randomUUID()}.jpg"
         val executor = Executors.newFixedThreadPool(10)
@@ -162,7 +185,40 @@ class JobApiIntegrationTest {
     }
 
     @Test
-    @Order(5)
+    @Order(6)
+    fun `POST jobs - 서로 다른 Idempotency-Key로 동시에 요청해도 활성 job은 하나만 유지`() {
+        val imageUrl = "https://example.com/concurrent-idempotency-${UUID.randomUUID()}.jpg"
+        val executor = Executors.newFixedThreadPool(10)
+
+        val futures = (1..10).map {
+            CompletableFuture.supplyAsync({
+                val headers = HttpHeaders().apply { set("Idempotency-Key", UUID.randomUUID().toString()) }
+                restTemplate.postForEntity(
+                    "/api/v1/jobs",
+                    HttpEntity(CreateJobRequest(imageUrl), headers),
+                    JobResponse::class.java
+                )
+            }, executor)
+        }
+
+        val responses = futures.map { it.get() }
+
+        responses.forEach {
+            assertTrue(it.statusCode.is2xxSuccessful, "Expected 2xx but got ${it.statusCode}: ${it.body}")
+        }
+
+        val jobIds = responses.map {
+            assertNotNull(it.body?.jobId, "Expected non-null jobId in response: ${it.body}")
+            it.body?.jobId
+        }.filterNotNull().toSet()
+
+        assertEquals(1, jobIds.size)
+
+        executor.shutdown()
+    }
+
+    @Test
+    @Order(7)
     fun `GET jobs-id - 존재하지 않는 jobId는 404`() {
         val response = restTemplate.getForEntity(
             "/api/v1/jobs/${UUID.randomUUID()}",
@@ -172,7 +228,7 @@ class JobApiIntegrationTest {
     }
 
     @Test
-    @Order(6)
+    @Order(8)
     fun `GET jobs - 목록 조회 정상 동작`() {
         val response = restTemplate.getForEntity(
             "/api/v1/jobs?page=0&size=10",
@@ -183,7 +239,7 @@ class JobApiIntegrationTest {
     }
 
     @Test
-    @Order(7)
+    @Order(9)
     fun `요청 검증 - imageUrl 없으면 400`() {
         val response = restTemplate.postForEntity(
             "/api/v1/jobs",

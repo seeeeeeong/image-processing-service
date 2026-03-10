@@ -30,18 +30,16 @@ class JobService(
         val normalizedUrl = normalizeUrl(request.imageUrl)
         val payloadHash = sha256(normalizedUrl)
 
+        val activeExisting = jobRepository.findActiveByPayloadHash(payloadHash)
+        if (activeExisting != null) {
+            log.info("Dedup by payload_hash={}, existing jobId={}", payloadHash, activeExisting.id)
+            return Pair(JobResponse.from(activeExisting), false)
+        }
+
         if (idempotencyKey != null) {
             val existing = jobRepository.findByIdempotencyKey(idempotencyKey)
             if (existing != null) {
                 log.info("Idempotent return for key={}", idempotencyKey)
-                return Pair(JobResponse.from(existing), false)
-            }
-        }
-
-        if (idempotencyKey == null) {
-            val existing = jobRepository.findActiveByPayloadHash(payloadHash)
-            if (existing != null) {
-                log.info("Dedup by payload_hash={}, existing jobId={}", payloadHash, existing.id)
                 return Pair(JobResponse.from(existing), false)
             }
         }
@@ -60,11 +58,8 @@ class JobService(
             return Pair(JobResponse.from(job), true)
         }
 
-        val existing = if (idempotencyKey != null) {
-            jobRepository.findByIdempotencyKey(idempotencyKey)
-        } else {
-            jobRepository.findActiveByPayloadHash(payloadHash)
-        }
+        val existing = jobRepository.findActiveByPayloadHash(payloadHash)
+            ?: idempotencyKey?.let(jobRepository::findByIdempotencyKey)
         val resolved = existing ?: throw IllegalStateException("Conflict but no existing job found for hash=$payloadHash")
         log.info("Concurrent create conflict resolved, returning jobId={}", resolved.id)
         return Pair(JobResponse.from(resolved), false)
@@ -111,10 +106,11 @@ class JobService(
                 job.pollDueAt = Instant.now().plusSeconds(props.worker.pollInitialDelaySeconds)
             }
             "COMPLETED" -> {
-                job.transitionTo(JobStatus.COMPLETED)
+                job.transitionTo(JobStatus.PROCESSING)
+                job.pollDueAt = Instant.now()
                 job.lastErrorCode = null
                 job.lastErrorMessage = null
-                log.info("Job immediately completed: jobId={}", jobId)
+                log.info("Worker submit returned COMPLETED; scheduling immediate poll: jobId={}", jobId)
             }
             "FAILED" -> {
                 job.transitionTo(JobStatus.FAILED)
