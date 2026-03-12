@@ -73,6 +73,14 @@ Client
 
 - Java 17
 - Docker
+- 외부 네트워크에서 `https://dev.realteeth.ai` 접근 가능해야 함
+
+포트 기본값:
+
+- 애플리케이션: `8080`
+- MySQL: `3306`
+
+다른 프로세스가 위 포트를 이미 사용 중이면 실행이 실패할 수 있습니다.
 
 ### 4.2 로컬 실행
 
@@ -88,10 +96,17 @@ docker compose up -d mysql
 ./gradlew bootRun
 ```
 
-기본 포트:
+실행 확인:
 
-- 애플리케이션: `8080`
-- MySQL: `3306`
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+정상 응답 예시:
+
+```json
+{"status":"UP"}
+```
 
 ### 4.3 Docker Compose 실행
 
@@ -99,11 +114,19 @@ docker compose up -d mysql
 docker compose up --build
 ```
 
+위 명령은 MySQL과 애플리케이션을 함께 실행합니다.
+
 ### 4.4 자격 증명 관련
 
 별도의 상용 계정이나 사전 발급 키를 준비할 필요는 없습니다.
 
-애플리케이션은 시작 시 `MOCK_WORKER_API_KEY`가 비어 있으면 Mock Worker의 `/mock/auth/issue-key`를 호출해 API Key를 자동 발급받습니다. 따라서 외부 네트워크로 `https://dev.realteeth.ai`에 접근 가능한 환경이면 추가 준비 없이 실행 가능합니다.
+애플리케이션은 시작 시 `MOCK_WORKER_API_KEY`가 비어 있으면 Mock Worker의 `/mock/auth/issue-key`를 호출해 API Key를 자동 발급받습니다. 따라서 외부 네트워크로 `https://dev.realteeth.ai`에 접근 가능한 환경이어야 합니다.
+
+즉, 평가자 로컬 환경에서 추가 계정은 필요 없지만 아래 조건은 필요합니다.
+
+- Docker Desktop 또는 Docker Engine 사용 가능
+- `8080`, `3306` 포트 사용 가능
+- `https://dev.realteeth.ai` outbound 접근 가능
 
 ---
 

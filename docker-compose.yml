@@ -27,7 +27,7 @@ services:
       DB_USER: imagejob
       DB_PASSWORD: imagejob
       MOCK_WORKER_BASE_URL: https://dev.realteeth.ai
-      MOCK_WORKER_API_KEY: ${MOCK_WORKER_API_KEY:}
+      MOCK_WORKER_API_KEY: ${MOCK_WORKER_API_KEY:-}
     depends_on:
       mysql:
         condition: service_healthy
